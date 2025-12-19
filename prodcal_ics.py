@@ -77,15 +77,15 @@ def get_holidays_grouped_by_months(year):
 def create_dayoff_event(year, month, day_start, day_end):
     event = Event()
     event.add("summary", "Day off")
-    event.add("dtstart", datetime(year, month, day_start, 0, 0, 0).date())
-    event.add(
-        "dtend", datetime(year, month, day_end, 0, 0, 0).date() + timedelta(days=1)
-    )
 
-    # UID is REQUIRED https://tools.ietf.org/html/rfc5545#section-3.6.1
-    uid = hashlib.sha512(
-        f"{year}{month}{day_start}{day_end}".encode("ascii")
-    ).hexdigest()
+    event.add("dtstart", datetime(year, month, day_start, 0, 0, 0).date())
+    event.add("dtend", datetime(year, month, day_end, 0, 0, 0).date() + timedelta(days=1))
+
+    # Required by many clients
+    event.add("dtstamp", datetime.utcnow())
+
+    # Short, stable UID (no line folding)
+    uid = f"ru-prodcal-{year}{month:02d}{day_start:02d}-{day_end:02d}"
     event.add("uid", uid)
 
     return event
@@ -145,6 +145,8 @@ def generate_calendar(events):
     cal = Calendar()
     cal.add("prodid", "-//ru-prodcal-ics//Ru Working Days Calendar//EN")
     cal.add("version", "2.0")
+    cal.add("calscale", "GREGORIAN")
+    cal.add("method", "PUBLISH")
     cal.add("NAME", "Ru Working Days Calendar")
     cal.add("X-WR-CALNAME", "Ru Working Days Calendar")
 
@@ -184,5 +186,6 @@ if __name__ == "__main__":
 
     cal = generate_calendar(events)
 
-    with open(args.output_file, "w") as f:
-        f.write(cal.to_ical().decode("utf-8"))
+    with open(args.output_file, "wb") as f:
+        f.write(cal.to_ical())
+

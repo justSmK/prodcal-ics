@@ -13,34 +13,63 @@ import hashlib
 
 def get_holidays_grouped_by_months(year):
     url = f"https://hh.ru/article/calendar{year}"
-
     logging.info(url)
 
     headers = {"User-Agent": "curl/7.68.0"}
-
-    page = requests.get(url, headers=headers, allow_redirects=True)
+    page = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
 
     if page.status_code == 404:
         return None
 
+    # если HH отдаст 403/500/прочее — пусть упадёт явно (будет видно в Actions)
+    page.raise_for_status()
+
     tree = html.fromstring(page.content)
+
+    # 1) Старый способ (как было)
     months = tree.xpath(
         "//div[@class='calendar-list__item__title' or @class='calendar-list__item-title']/.."
     )
+    if len(months) == 12:
+        holidays = []
+        for m in months:
+            holidays_in_month = m.xpath(
+                ".//li[contains(@class, 'calendar-list__numbers__item_day-off')]/text()"
+            )
+            holidays_in_month = [day.strip() for day in holidays_in_month if day.strip()]
+            holidays.append([int(day) for day in holidays_in_month])
+        return holidays
 
-    if len(months) != 12:
-        raise Exception(
-            f"len(months) ({year} year) must be equal to 12, actual: {len(months)}"
-        )
+    # 2) Fallback для новой разметки (2026 редиректит на /calendar)
+    text = tree.text_content()
+    text = text.replace("\xa0", " ")  # nbsp
+    months_ru = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+    ]
 
+    # Найдём позиции всех месяцев в тексте
+    positions = []
+    for m in months_ru:
+        idx = text.find(m)
+        positions.append(idx)
+
+    if any(idx == -1 for idx in positions):
+        raise Exception(f"Could not find all months in HH page text for year {year} (layout changed)")
+
+    # Разрежем текст на 12 кусков: месяц -> следующий месяц
     holidays = []
+    for i, month_name in enumerate(months_ru):
+        start = positions[i]
+        end = positions[i + 1] if i < 11 else len(text)
+        chunk = text[start:end]
 
-    for m in months:
-        holidays_in_month = m.xpath(
-            ".//li[contains(@class, 'calendar-list__numbers__item_day-off')]/text()"
-        )
-        holidays_in_month = [day.strip() for day in holidays_in_month if day.strip()]
-        holidays.append([int(day) for day in holidays_in_month])
+        # Ищем дни, перед которыми/после которых идёт "Выходной день"
+        # В тексте это выглядит как:
+        # "1 ... Выходной день ...", "2 ... Выходной день ..."
+        import re
+        days = re.findall(r"(?:^|\s)(\d{1,2})(?=\s+Выходной день)", chunk)
+        holidays.append([int(d) for d in days])
 
     return holidays
 

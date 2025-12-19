@@ -1,0 +1,52 @@
+name: Refresh prodcal.ics
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # daily 06:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: prodcal-ics
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate prodcal.ics
+        run: |
+          mkdir -p out
+          python prodcal_ics.py --start-year=2018 -o out/prodcal.ics
+          # optional: a tiny landing page so opening Pages root is nice
+          cat > out/index.html << 'EOF'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>ru-prodcal-ics</title>
+          <h1>ru-prodcal-ics</h1>
+          <p><a href="./prodcal.ics">prodcal.ics</a></p>
+          EOF
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
+          publish_branch: gh-pages

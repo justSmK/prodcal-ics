@@ -1,111 +1,108 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title>ru-prodcal-ics</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>ru-prodcal-ics</h1>
 
-  <div class="meta" id="meta">Loading…</div>
+<h1>ru-prodcal-ics</h1>
 
-  <div class="card">
-    <div class="row">
-      <div class="label">Subscribe URL</div>
-      <div class="value mono" id="subscribeUrl">—</div>
-    </div>
+<div class="meta" id="meta">Loading…</div>
 
-    <div class="buttons">
-      <button class="copy-btn" id="copyBtn" type="button">Copy URL</button>
-      <a class="btn" id="openIcsBtn" href="./prodcal.ics">Open .ics</a>
-    </div>
+<div class="card">
+  <div class="row">
+    <div class="label">Subscribe URL</div>
+    <div class="value mono" id="subscribeUrl">—</div>
   </div>
 
-  <div class="card">
-    <div class="label">Source</div>
-    <ul class="links">
-      <li><a id="hhCalendar" href="https://hh.ru/calendar">hh.ru/calendar</a></li>
-      <li><a id="hhArticle" href="https://hh.ru/article/calendar">hh.ru/article/calendarYYYY</a></li>
-      <li><a href="https://justSmK.github.io/prodcal-ics/prodcal.ics">Direct .ics link</a></li>
-    </ul>
+  <div class="buttons">
+    <button class="copy-btn" id="copyBtn" type="button">Copy URL</button>
+    <a class="btn" href="./prodcal.ics">Open .ics</a>
   </div>
+</div>
 
-  <script>
-    function formatRelativeTime(date) {
-      const now = new Date();
-      const diffMs = now - date;
-      const diffSec = Math.floor(diffMs / 1000);
-      const diffMin = Math.floor(diffSec / 60);
-      const diffHours = Math.floor(diffMin / 60);
-      const diffDays = Math.floor(diffHours / 24);
+<div class="card">
+  <div class="label">Source</div>
+  <ul class="links" id="sources"></ul>
+</div>
 
-      if (diffMin < 1) return 'just now';
-      if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
-      if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-      if (diffDays < 30) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-      return 'more than 30 days ago';
+<script>
+  function formatRelativeTime(date) {
+    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    return `${Math.floor(diff / 86400)} days ago`;
+  }
+
+  async function loadMeta() {
+    const metaEl = document.getElementById('meta');
+    const subscribeEl = document.getElementById('subscribeUrl');
+    const copyBtn = document.getElementById('copyBtn');
+    const sourcesEl = document.getElementById('sources');
+
+    const baseUrl =
+      location.origin +
+      location.pathname.replace(/\/[^\/]*$/, '');
+
+    let data = null;
+    try {
+      const res = await fetch('./meta.json', { cache: 'no-store' });
+      if (res.ok) data = await res.json();
+    } catch {}
+
+    const subscribeUrl = data?.subscribeUrl || `${baseUrl}/prodcal.ics`;
+    subscribeEl.textContent = subscribeUrl;
+    copyBtn.dataset.url = subscribeUrl;
+
+    if (data?.updatedAtUtc) {
+      const d = new Date(data.updatedAtUtc);
+      metaEl.textContent =
+        `Updated ${formatRelativeTime(d)} (${d.toLocaleString()})`;
+    } else {
+      metaEl.textContent = 'Updated time unknown';
     }
 
-    async function loadMeta() {
-      const metaEl = document.getElementById('meta');
-      const subscribeEl = document.getElementById('subscribeUrl');
-      const copyBtn = document.getElementById('copyBtn');
-      const hhCalendar = document.getElementById('hhCalendar');
-      const hhArticle = document.getElementById('hhArticle');
-
-      // Compute base URL from current location (works for custom domains too)
-      const basePath =
-        window.location.origin +
-        window.location.pathname.replace(/\/[^\/]*$/, '');
-
-      const fallbackSubscribeUrl = `${basePath}/prodcal.ics`;
-
-      let data = null;
-      try {
-        const resp = await fetch('./meta.json', { cache: 'no-store' });
-        if (resp.ok) data = await resp.json();
-      } catch {}
-
-      const updatedAt = data?.updatedAtUtc ? new Date(data.updatedAtUtc) : null;
-      const subscribeUrl = data?.subscribeUrl || fallbackSubscribeUrl;
-
-      subscribeEl.textContent = subscribeUrl;
-      copyBtn.dataset.url = subscribeUrl;
-
-      if (data?.hhCalendarUrl) hhCalendar.href = data.hhCalendarUrl;
-      if (data?.hhArticleUrl) {
-        hhArticle.href = data.hhArticleUrl;
-        hhArticle.textContent = data.hhArticleUrl.replace('https://', '');
-      }
-
-      if (updatedAt && !isNaN(updatedAt.getTime())) {
-        metaEl.textContent =
-          `Updated ${formatRelativeTime(updatedAt)} (${updatedAt.toLocaleString()})`;
-      } else {
-        metaEl.textContent = 'Updated time: unknown';
-      }
+    if (data?.hhCalendarUrl) {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = data.hhCalendarUrl;
+      a.textContent = 'hh.ru/calendar';
+      li.appendChild(a);
+      sourcesEl.appendChild(li);
     }
 
-    document.addEventListener('click', async (event) => {
-      const btn = event.target.closest('.copy-btn');
-      if (!btn) return;
-
-      const url = btn.dataset.url;
-      if (!url) return;
-
-      try {
-        await navigator.clipboard.writeText(url);
-        const original = btn.textContent;
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = original; }, 1200);
-      } catch (e) {
-        alert('Failed to copy. You can copy the URL manually.');
+    if (Array.isArray(data?.years)) {
+      for (const y of data.years) {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `https://hh.ru/article/calendar${y}`;
+        a.textContent = `hh.ru/article/calendar${y}`;
+        li.appendChild(a);
+        sourcesEl.appendChild(li);
       }
-    });
+    }
+  }
 
-    loadMeta();
-  </script>
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.copy-btn');
+    if (!btn) return;
+
+    try {
+      await navigator.clipboard.writeText(btn.dataset.url);
+      const old = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = old, 1200);
+    } catch {
+      alert('Copy failed');
+    }
+  });
+
+  loadMeta();
+</script>
+
 </body>
 </html>

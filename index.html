@@ -11,6 +11,7 @@
 <h1>ru-prodcal-ics</h1>
 
 <div class="meta" id="meta">Loading…</div>
+<div class="meta" id="coverage">Calendar covers: —</div>
 
 <div class="card">
   <div class="row">
@@ -25,8 +26,13 @@
 </div>
 
 <div class="card">
-  <div class="label">Source</div>
-  <ul class="links" id="sources"></ul>
+  <div class="label">Data source</div>
+  <p class="text">
+    Calendar data is sourced from
+    <a href="https://hh.ru/calendar" target="_blank">hh.ru/calendar</a>
+    and HeadHunter production calendar for
+    <span id="years-links">—</span>.
+  </p>
 </div>
 
 <script>
@@ -40,9 +46,10 @@
 
   async function loadMeta() {
     const metaEl = document.getElementById('meta');
+    const coverageEl = document.getElementById('coverage');
     const subscribeEl = document.getElementById('subscribeUrl');
     const copyBtn = document.getElementById('copyBtn');
-    const sourcesEl = document.getElementById('sources');
+    const yearsLinksEl = document.getElementById('years-links');
 
     const baseUrl =
       location.origin +
@@ -66,23 +73,18 @@
       metaEl.textContent = 'Updated time unknown';
     }
 
-    if (data?.hhCalendarUrl) {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = data.hhCalendarUrl;
-      a.textContent = 'hh.ru/calendar';
-      li.appendChild(a);
-      sourcesEl.appendChild(li);
-    }
+    if (Number.isInteger(data?.startYear) && Number.isInteger(data?.endYear)) {
+      coverageEl.textContent =
+        `Calendar covers: ${data.startYear}–${data.endYear}`;
 
-    if (Array.isArray(data?.years)) {
-      for (const y of data.years) {
-        const li = document.createElement('li');
+      yearsLinksEl.innerHTML = '';
+      for (let y = data.startYear; y <= data.endYear; y++) {
+        if (y !== data.startYear) yearsLinksEl.append(', ');
         const a = document.createElement('a');
         a.href = `https://hh.ru/article/calendar${y}`;
-        a.textContent = `hh.ru/article/calendar${y}`;
-        li.appendChild(a);
-        sourcesEl.appendChild(li);
+        a.textContent = y;
+        a.target = '_blank';
+        yearsLinksEl.appendChild(a);
       }
     }
   }

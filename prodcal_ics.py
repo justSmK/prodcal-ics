@@ -22,6 +22,7 @@ def fetch_page(year: int) -> bytes | None:
     r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
 
     if r.status_code == 404:
+        logging.warning("No calendar page for year %d (404)", year)
         return None
 
     r.raise_for_status()
@@ -66,7 +67,10 @@ def parse_year(year: int) -> list[dict] | None:
     )
 
     if len(months) != 12:
-        raise Exception(f"Unexpected HH layout for year {year}")
+        raise RuntimeError(
+            f"Unexpected HH layout for year {year}: expected 12 months, got {len(months)}"
+        )
+
 
     result: list[dict] = []
 
@@ -90,6 +94,7 @@ def parse_year(year: int) -> list[dict] | None:
 
         result.append(month_map)
 
+    logging.info("Parsed calendar for year %d", year)
     return result
 
 
@@ -172,12 +177,12 @@ def main():
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-
     events: list[Event] = []
 
     for year in range(args.start_year, args.end_year + 1):
         months = parse_year(year)
         if not months:
+            logging.info("Stopping at year %d (no data yet)", year)
             break
         events.extend(generate_events(year, months))
 

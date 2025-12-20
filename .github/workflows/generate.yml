@@ -34,14 +34,30 @@ jobs:
       - name: Generate prodcal.ics
         run: |
           mkdir -p out
+
           YEAR=$(date -u +%Y)
-          python prodcal_ics.py --start-year=$((YEAR-1)) --end-year=$((YEAR+1)) -o out/prodcal.ics
-          cat > out/index.html << 'EOF'
-          <!doctype html>
-          <meta charset="utf-8">
-          <title>ru-prodcal-ics</title>
-          <h1>ru-prodcal-ics</h1>
-          <p><a href="./prodcal.ics">prodcal.ics</a></p>
+
+          python prodcal_ics.py \
+            --start-year=$((YEAR-1)) \
+            --end-year=$((YEAR+1)) \
+            -o out/prodcal.ics
+
+          # Copy static site files from repo
+          cp index.html out/index.html
+          cp style.css out/style.css
+
+          # Build meta.json for the page
+          UPDATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BASE_URL="https://justSmK.github.io/prodcal-ics"
+          SUBSCRIBE_URL="${BASE_URL}/prodcal.ics"
+
+          cat > out/meta.json << EOF
+          {
+            "updatedAtUtc": "${UPDATED_AT}",
+            "subscribeUrl": "${SUBSCRIBE_URL}",
+            "hhCalendarUrl": "https://hh.ru/calendar",
+            "hhArticleUrl": "https://hh.ru/article/calendar${YEAR}"
+          }
           EOF
 
       - name: Deploy to GitHub Pages (gh-pages branch)

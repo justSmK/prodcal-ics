@@ -2,7 +2,7 @@ name: Refresh prodcal.ics
 
 on:
   schedule:
-    - cron: "0 6 * * *"  # daily 06:00 UTC
+    - cron: "0 6 1 * *"  # # monthly, 1st day at 06:00 UTC
   workflow_dispatch:
 
 concurrency:
@@ -18,12 +18,12 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           cache: "pip"
 
       - name: Install dependencies
@@ -34,8 +34,8 @@ jobs:
       - name: Generate prodcal.ics
         run: |
           mkdir -p out
-          python prodcal_ics.py --start-year=2024 -o out/prodcal.ics
-          # optional: a tiny landing page so opening Pages root is nice
+          YEAR=$(date -u +%Y)
+          python prodcal_ics.py --start-year=$YEAR --end-year=$((YEAR+1)) -o out/prodcal.ics
           cat > out/index.html << 'EOF'
           <!doctype html>
           <meta charset="utf-8">

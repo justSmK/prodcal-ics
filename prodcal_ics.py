@@ -5,7 +5,7 @@ from icalendar import Calendar, Event
 from lxml import html
 import requests
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import argparse
 import logging
 import re
@@ -118,7 +118,7 @@ def make_event(year, month, d1, d2, summary):
     e.add("summary", summary)
     e.add("dtstart", datetime(year, month, d1).date())
     e.add("dtend", datetime(year, month, d2).date() + timedelta(days=1))
-    e.add("dtstamp", datetime.utcnow())
+    e.add("dtstamp", datetime.now(UTC))
     e.add("uid", f"ru-prodcal-{year}{month:02d}{d1:02d}-{d2:02d}-{summary.lower().replace(' ', '-')}")
     return e
 
@@ -166,7 +166,12 @@ def main():
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args()
 
-    logging.basicConfig(level=args.log_level)
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
 
     events: list[Event] = []
 

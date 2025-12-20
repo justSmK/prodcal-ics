@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p out
           YEAR=$(date -u +%Y)
-          python prodcal_ics.py --start-year=$YEAR --end-year=$((YEAR+1)) -o out/prodcal.ics
+          python prodcal_ics.py --start-year=$((YEAR-1)) --end-year=$((YEAR+1)) -o out/prodcal.ics
           cat > out/index.html << 'EOF'
           <!doctype html>
           <meta charset="utf-8">

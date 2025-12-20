@@ -145,12 +145,12 @@ def generate_events(year: int, months: list[dict]) -> list[Event]:
 
 def build_calendar(events: list[Event]) -> Calendar:
     cal = Calendar()
-    cal.add("prodid", "-//ru-prodcal-ics//Ru Working Days Calendar//EN")
+    cal.add("prodid", "-//ru-prodcal-ics//Ru Non-Working Days Calendar//EN")
     cal.add("version", "2.0")
     cal.add("calscale", "GREGORIAN")
     cal.add("method", "PUBLISH")
-    cal.add("NAME", "Ru Working Days Calendar")
-    cal.add("X-WR-CALNAME", "Ru Working Days Calendar")
+    cal.add("NAME", "Ru Non-Working Days")
+    cal.add("X-WR-CALNAME", "Ru Non-Working Days")
 
     for e in sorted(events, key=lambda x: x.decoded("dtstart")):
         cal.add_component(e)

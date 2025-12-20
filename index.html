@@ -29,7 +29,7 @@
   <div class="label">Data source</div>
   <p class="text">
     Calendar data is sourced from
-    <a href="https://hh.ru/calendar" target="_blank">hh.ru/calendar</a>
+    <a href="https://hh.ru/calendar" target="_blank" rel="noreferrer">hh.ru/calendar</a>
     and HeadHunter production calendar for
     <span id="years-links">—</span>.
   </p>
@@ -44,12 +44,31 @@
     return `${Math.floor(diff / 86400)} days ago`;
   }
 
+  function renderYearsLinks(years) {
+    const yearsLinksEl = document.getElementById('years-links');
+    yearsLinksEl.innerHTML = '';
+
+    if (!years || years.length === 0) {
+      yearsLinksEl.textContent = '—';
+      return;
+    }
+
+    years.forEach((y, i) => {
+      if (i > 0) yearsLinksEl.append(', ');
+      const a = document.createElement('a');
+      a.href = `https://hh.ru/article/calendar${y}`;
+      a.textContent = String(y);
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      yearsLinksEl.appendChild(a);
+    });
+  }
+
   async function loadMeta() {
     const metaEl = document.getElementById('meta');
     const coverageEl = document.getElementById('coverage');
     const subscribeEl = document.getElementById('subscribeUrl');
     const copyBtn = document.getElementById('copyBtn');
-    const yearsLinksEl = document.getElementById('years-links');
 
     const baseUrl =
       location.origin +
@@ -67,26 +86,22 @@
 
     if (data?.updatedAtUtc) {
       const d = new Date(data.updatedAtUtc);
-      metaEl.textContent =
-        `Updated ${formatRelativeTime(d)} (${d.toLocaleString()})`;
+      metaEl.textContent = `Updated ${formatRelativeTime(d)} (${d.toLocaleString()})`;
     } else {
       metaEl.textContent = 'Updated time unknown';
     }
 
-    if (Number.isInteger(data?.startYear) && Number.isInteger(data?.endYear)) {
-      coverageEl.textContent =
-        `Calendar covers: ${data.startYear}–${data.endYear}`;
+    const years = Array.isArray(data?.years)
+      ? data.years.map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+      : [];
 
-      yearsLinksEl.innerHTML = '';
-      for (let y = data.startYear; y <= data.endYear; y++) {
-        if (y !== data.startYear) yearsLinksEl.append(', ');
-        const a = document.createElement('a');
-        a.href = `https://hh.ru/article/calendar${y}`;
-        a.textContent = y;
-        a.target = '_blank';
-        yearsLinksEl.appendChild(a);
-      }
+    if (years.length) {
+      coverageEl.textContent = `Calendar covers: ${years[0]}–${years[years.length - 1]}`;
+    } else {
+      coverageEl.textContent = 'Calendar covers: —';
     }
+
+    renderYearsLinks(years);
   }
 
   document.addEventListener('click', async (e) => {

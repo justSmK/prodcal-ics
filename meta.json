@@ -1,6 +1,6 @@
 {
-  "updatedAtUtc": "2025-12-20T12:19:20Z",
+  "updatedAtUtc": "2025-12-20T12:28:21Z",
   "subscribeUrl": "https://justSmK.github.io/prodcal-ics/prodcal.ics",
-  "hhCalendarUrl": "https://hh.ru/calendar",
-  "hhArticleUrl": "https://hh.ru/article/calendar2025"
+  "years": [2024, 2025, 2026],
+  "hhCalendarUrl": "https://hh.ru/calendar"
 }

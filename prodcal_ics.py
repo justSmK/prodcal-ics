@@ -11,7 +11,7 @@ import logging
 import re
 
 
-MAX_SPAN_DAYS = 7
+MAX_SPAN_DAYS = 10
 
 
 def fetch_page(year: int) -> bytes | None:

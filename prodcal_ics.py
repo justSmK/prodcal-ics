@@ -135,7 +135,7 @@ def generate_events(year: int, months: list[dict]) -> list[Event]:
         for kind, summary in [
             ("holiday", "Holiday"),
             ("dayoff", "Day off"),
-            ("shortened", "Shortened workday"),
+            ("shortened", "* Shortened workday"),
         ]:
             days = [d for d, k in days_map.items() if k == kind]
 

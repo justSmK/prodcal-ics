@@ -2,11 +2,12 @@ name: Refresh prodcal.ics
 
 on:
   schedule:
-    - cron: "0 6 1 * *"  # # monthly, 1st day at 06:00 UTC
+    - cron: "0 6 * * 1"  # weekly, Monday at 06:00 UTC
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: prodcal-ics
+  group: prodcal-ics-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -45,6 +46,7 @@ jobs:
           python prodcal_ics.py \
             --start-year=$START_YEAR \
             --end-year=$END_YEAR \
+            --years-out years.json \
             -o out/prodcal.ics
 
           # Copy static site files
@@ -54,13 +56,13 @@ jobs:
           # Build meta.json for the page
           UPDATED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           BASE_URL="https://justSmK.github.io/prodcal-ics"
+          YEARS=$(cat years.json)
 
           cat > out/meta.json << EOF
           {
             "updatedAtUtc": "${UPDATED_AT}",
             "subscribeUrl": "${BASE_URL}/prodcal.ics",
-            "years": [$START_YEAR, $YEAR, $END_YEAR],
-            "hhCalendarUrl": "https://hh.ru/calendar"
+            "years": ${YEARS}
           }
           EOF
 
@@ -70,6 +72,7 @@ jobs:
           path: ./out
 
   deploy:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: build
 

@@ -2,7 +2,7 @@
 # [prodcal-ics](https://justsmk.github.io/prodcal-ics/index.html)
 English iCalendar feed with non-working days in Russia
 
-[hh](https://hh.ru/calendar)
+[xmlcalendar](https://xmlcalendar.ru)
 [Another](https://secrets.tbank.ru/calendar/2026/)
 [Another one](https://www.consultant.ru/law/ref/calendar/proizvodstvennye/2027/)
 

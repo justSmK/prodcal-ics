@@ -2,100 +2,81 @@
 # -*- coding: utf-8 -*-
 
 from icalendar import Calendar, Event
-from lxml import html
 import requests
 
-from datetime import datetime, timedelta, UTC
+from datetime import date, datetime, timedelta, UTC
 import argparse
+import json
 import logging
-import re
+import xml.etree.ElementTree as ET
 
 
 MAX_SPAN_DAYS = 10
 
+CALENDAR_URL = "https://raw.githubusercontent.com/xmlcalendar/data/master/ru/{year}/calendar.xml"
 
-def fetch_page(year: int) -> bytes | None:
-    url = f"https://hh.ru/article/calendar{year}"
+DAY_OFF, SHORTENED, WORKING = "1", "2", "3"
+
+
+def fetch_calendar(year: int) -> bytes | None:
+    url = CALENDAR_URL.format(year=year)
     logging.info(url)
 
-    headers = {"User-Agent": "curl/7.68.0"}
-    r = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
+    r = requests.get(url, timeout=20)
 
     if r.status_code == 404:
-        logging.warning("No calendar page for year %d (404)", year)
+        logging.warning("No calendar for year %d (404)", year)
         return None
 
     r.raise_for_status()
     return r.content
 
 
-def normalize_text(s: str) -> str:
-    return re.sub(r"\s+", " ", (s or "").strip())
+def classify_day(node: ET.Element) -> str | None:
+    day_type = node.get("t")
 
+    if day_type == DAY_OFF:
+        return "holiday" if node.get("h") else "dayoff"
 
-def classify_day(hint: str) -> str | None:
-    """
-    Returns one of:
-      - 'holiday'
-      - 'dayoff'
-      - 'shortened'
-    or None (working day)
-    """
-    hint = normalize_text(hint)
-
-    if hint.startswith("Предпраздничный день"):
+    if day_type == SHORTENED:
         return "shortened"
 
-    if hint.startswith("Выходной день."):
-        return "holiday"
+    if day_type == WORKING:
+        return None
 
-    if hint.startswith("Выходной день"):
-        return "dayoff"
+    raise RuntimeError(f"Unknown day type {day_type!r} on {node.get('d')}")
 
-    return None
+
+def parse_calendar(year: int, content: bytes) -> list[dict[int, str]]:
+    root = ET.fromstring(content)
+
+    if root.get("year") != str(year):
+        raise RuntimeError(f"Calendar for year {year} declares year {root.get('year')!r}")
+
+    listed: dict[date, str | None] = {}
+    for node in root.iterfind("days/day"):
+        month, day = (int(part) for part in node.attrib["d"].split("."))
+        listed[date(year, month, day)] = classify_day(node)
+
+    months: list[dict[int, str]] = [{} for _ in range(12)]
+    day = date(year, 1, 1)
+    while day.year == year:
+        kind = listed[day] if day in listed else ("dayoff" if day.weekday() >= 5 else None)
+        if kind:
+            months[day.month - 1][day.day] = kind
+        day += timedelta(days=1)
+
+    return months
 
 
 def parse_year(year: int) -> list[dict] | None:
-    content = fetch_page(year)
+    content = fetch_calendar(year)
     if content is None:
         return None
 
-    tree = html.fromstring(content)
-
-    months = tree.xpath(
-        "//div[@class='calendar-list__item__title' or @class='calendar-list__item-title']/.."
-    )
-
-    if len(months) != 12:
-        raise RuntimeError(
-            f"Unexpected HH layout for year {year}: expected 12 months, got {len(months)}"
-        )
-
-
-    result: list[dict] = []
-
-    for m in months:
-        month_map: dict[int, str] = {}
-
-        days = m.xpath(".//li[contains(@class,'calendar-list__numbers__item')]")
-        for li in days:
-            text = normalize_text(li.text_content())
-            mday = re.match(r"^(\d{1,2})\b", text)
-            if not mday:
-                continue
-
-            day = int(mday.group(1))
-            hint_nodes = li.xpath(".//div[contains(@class,'calendar-hint')]//text()")
-            hint = normalize_text(" ".join(hint_nodes))
-
-            kind = classify_day(hint)
-            if kind:
-                month_map[day] = kind
-
-        result.append(month_map)
-
+    months = parse_calendar(year, content)
     logging.info("Parsed calendar for year %d", year)
-    return result
+    return months
 
 
 def group_consecutive(days: list[int]) -> list[list[int]]:
@@ -168,6 +149,7 @@ def main():
     p.add_argument("--start-year", type=int, default=datetime.today().year)
     p.add_argument("--end-year", type=int, default=datetime.today().year + 1)
     p.add_argument("-o", default="prodcal.ics")
+    p.add_argument("--years-out", help="Write the years covered by the calendar to this file as a JSON list")
     p.add_argument("--log-level", default="INFO")
     args = p.parse_args()
 
@@ -178,6 +160,7 @@ def main():
     )
 
     events: list[Event] = []
+    years: list[int] = []
 
     for year in range(args.start_year, args.end_year + 1):
         months = parse_year(year)
@@ -185,11 +168,16 @@ def main():
             logging.info("Stopping at year %d (no data yet)", year)
             break
         events.extend(generate_events(year, months))
+        years.append(year)
 
     cal = build_calendar(events)
 
     with open(args.o, "wb") as f:
         f.write(cal.to_ical())
+
+    if args.years_out:
+        with open(args.years_out, "w", encoding="utf-8") as f:
+            json.dump(years, f)
 
 
 if __name__ == "__main__":
